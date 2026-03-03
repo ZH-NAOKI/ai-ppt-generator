@@ -18,7 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const data = {
       prompt: formData.get('prompt'),
       documentType: formData.get('documentType'),
-      slideCount: formData.get('slideCount')
+      slideCount: formData.get('slideCount'),
+      useAI: formData.get('useAI') === 'on'
     }
 
     // バリデーション
@@ -51,13 +52,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // プレビュー表示
-      displayPreview(result.slides)
+      displayPreview(result.slides, result.generatedWithAI)
 
       // ダウンロードボタン作成
       createDownloadButton(result.pptx, result.filename)
 
       // 成功メッセージ
-      showSuccess('PowerPointが正常に生成されました!')
+      const message = result.generatedWithAI
+        ? '✨ AIによるPowerPointが正常に生成されました!'
+        : 'PowerPointが正常に生成されました!'
+      showSuccess(message)
     } catch (error) {
       console.error('Error:', error)
       showError(error.message || 'エラーが発生しました')
@@ -70,8 +74,17 @@ document.addEventListener('DOMContentLoaded', () => {
   })
 
   // プレビュー表示
-  function displayPreview(slides) {
+  function displayPreview(slides, generatedWithAI = false) {
     slidesList.innerHTML = ''
+
+    // AI生成バッジ
+    if (generatedWithAI) {
+      const aiBadge = document.createElement('div')
+      aiBadge.className = 'ai-badge'
+      aiBadge.innerHTML = '🤖 AI生成コンテンツ'
+      aiBadge.style.marginBottom = '1rem'
+      slidesList.appendChild(aiBadge)
+    }
 
     // タイトルスライド
     const titleSlide = document.createElement('div')

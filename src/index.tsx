@@ -1,8 +1,14 @@
 import { Hono } from 'hono'
 import { renderer } from './renderer'
 import PptxGenJS from 'pptxgenjs'
+import { generateSlideContentWithAI } from './ai-generator'
 
-const app = new Hono()
+type Bindings = {
+  OPENAI_API_KEY?: string
+  OPENAI_BASE_URL?: string
+}
+
+const app = new Hono<{ Bindings: Bindings }>()
 
 app.use(renderer)
 
@@ -12,7 +18,7 @@ app.get('/', (c) => {
     <div class="container">
       <header>
         <h1>📊 AI PowerPoint Generator</h1>
-        <p>プロンプトを入力して、提案資料や報告書などのパワーポイントを自動生成します</p>
+        <p>AIがプロンプトを解析して、プロフェッショナルなパワーポイント資料を自動生成します</p>
       </header>
 
       <div class="form-container">
@@ -48,9 +54,18 @@ app.get('/', (c) => {
             </select>
           </div>
 
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" id="useAI" name="useAI" checked />
+              AI生成を使用（高品質なコンテンツ）
+            </label>
+          </div>
+
           <button type="submit" id="generateBtn">
-            <span id="btnText">パワーポイントを生成</span>
-            <span id="btnLoader" class="hidden">生成中...</span>
+            <span id="btnText">🤖 AIでパワーポイントを生成</span>
+            <span id="btnLoader" class="hidden">
+              <span class="spinner"></span>生成中...
+            </span>
           </button>
         </form>
 
@@ -69,14 +84,35 @@ app.get('/', (c) => {
 app.post('/api/generate', async (c) => {
   try {
     const body = await c.req.json()
-    const { prompt, documentType, slideCount } = body
+    const { prompt, documentType, slideCount, useAI } = body
+    const { env } = c
 
-    // プロンプトに基づいてスライド構成を生成
-    const slides = generateSlideStructure(prompt, documentType, parseInt(slideCount))
+    let slides
+
+    // AI生成を使用する場合
+    if (useAI !== false) {
+      try {
+        console.log('Generating slides with AI...')
+        slides = await generateSlideContentWithAI(
+          prompt,
+          documentType,
+          parseInt(slideCount),
+          env
+        )
+        console.log('AI generation completed successfully')
+      } catch (aiError: any) {
+        console.error('AI generation failed, falling back to template:', aiError)
+        // AIが失敗した場合はテンプレートにフォールバック
+        slides = generateSlideStructureTemplate(prompt, documentType, parseInt(slideCount))
+      }
+    } else {
+      // テンプレート生成
+      slides = generateSlideStructureTemplate(prompt, documentType, parseInt(slideCount))
+    }
 
     // PowerPoint生成
     const pptx = new PptxGenJS()
-    
+
     // タイトルスライド
     const titleSlide = pptx.addSlide()
     titleSlide.background = { color: '1F4788' }
@@ -103,7 +139,7 @@ app.post('/api/generate', async (c) => {
     // 各スライドを生成
     slides.content.forEach((slideData: any) => {
       const slide = pptx.addSlide()
-      
+
       // タイトル
       slide.addText(slideData.title, {
         x: 0.5,
@@ -171,7 +207,8 @@ app.post('/api/generate', async (c) => {
       success: true,
       slides: slides,
       pptx: base64,
-      filename: `${documentType}_${Date.now()}.pptx`
+      filename: `${documentType}_${Date.now()}.pptx`,
+      generatedWithAI: useAI !== false
     })
   } catch (error: any) {
     console.error('Generation error:', error)
@@ -185,9 +222,8 @@ app.post('/api/generate', async (c) => {
   }
 })
 
-// スライド構成を生成する関数
-function generateSlideStructure(prompt: string, documentType: string, slideCount: number) {
-  // 簡易的なスライド構成生成（実際のAI統合は後で実装可能）
+// テンプレートベースのスライド構成生成（フォールバック用）
+function generateSlideStructureTemplate(prompt: string, documentType: string, slideCount: number) {
   const title = extractTitle(prompt, documentType)
   const subtitle = new Date().toLocaleDateString('ja-JP', {
     year: 'numeric',
@@ -327,7 +363,6 @@ function generateSlideStructure(prompt: string, documentType: string, slideCount
 }
 
 function extractTitle(prompt: string, documentType: string): string {
-  // プロンプトから簡易的にタイトルを抽出
   const typeNames: { [key: string]: string } = {
     proposal: '提案資料',
     report: '報告書',
@@ -335,7 +370,6 @@ function extractTitle(prompt: string, documentType: string): string {
     presentation: 'プレゼンテーション'
   }
 
-  // プロンプトの最初の30文字を取得するか、デフォルトタイトルを使用
   const promptTitle = prompt.slice(0, 30).trim()
   if (promptTitle.length > 0) {
     return promptTitle

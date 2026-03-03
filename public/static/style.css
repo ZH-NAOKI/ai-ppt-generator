@@ -154,6 +154,24 @@ button[type="submit"]:disabled {
   display: none !important;
 }
 
+.checkbox-group {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: auto;
+  margin-right: 0.5rem;
+  cursor: pointer;
+}
+
 .download-btn {
   display: inline-block;
   margin-top: 2rem;
@@ -173,6 +191,17 @@ button[type="submit"]:disabled {
   background: #218838;
   transform: translateY(-2px);
   box-shadow: 0 5px 20px rgba(40, 167, 69, 0.4);
+}
+
+.ai-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
 }
 
 @keyframes spin {
